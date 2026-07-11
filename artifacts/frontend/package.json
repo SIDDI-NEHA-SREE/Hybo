@@ -1,31 +1,35 @@
 {
-  "name": "@workspace/frontend",
-  "private": true,
-  "type": "module",
+  "name": "workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "packageManager": "pnpm@9.5.0",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "db:generate": "turbo db:generate",
+    "db:push": "turbo db:push"
   },
+  "private": true,
   "dependencies": {
-    "react": "catalog:",
-    "react-dom": "catalog:",
-    "wouter": "catalog:",
-    "@tanstack/react-query": "catalog:",
-    "lucide-react": "catalog:",
-    "framer-motion": "catalog:",
-    "clsx": "catalog:",
-    "tailwind-merge": "catalog:",
-    "class-variance-authority": "catalog:"
+    "@replit/connectors-sdk": "^0.4.1"
   },
   "devDependencies": {
-    "typescript": "catalog:",
-    "@types/react": "catalog:",
-    "@types/react-dom": "catalog:",
-    "@vitejs/plugin-react": "catalog:",
-    "vite": "catalog:",
-    "@tailwindcss/vite": "catalog:",
-    "tailwindcss": "catalog:",
-    "@types/node": "catalog:"
+    "prettier": "^3.9.4",
+    "typescript": "~5.9.3",
+    "turbo": "latest"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@swc/core",
+      "esbuild",
+      "msw",
+      "unrs-resolver",
+      "@google/genai",
+      "es5-ext",
+      "protobufjs",
+      "sharp"
+    ]
   }
 }
