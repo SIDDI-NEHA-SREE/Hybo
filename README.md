@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # HYBO – City InsideOut
 
 HYBO is an AI-powered Smart City Digital Twin platform for Hyderabad and Telangana. Developed by a team of three university students, the platform aims to democratize access to public services, local administration, tourism, transit, and emergency care.
@@ -114,6 +113,3 @@ For complete Vercel and AWS App Runner deploy steps, check out:
 ### Phase 3: Digital Twin Integration
 - Render 3D map of Hyderabad using MapLibre GL / Cesium.js.
 - Feed live WebSockets streams carrying IoT telemetry (transit location, air index, water levels).
-=======
-
->>>>>>> 66ef7fa5b9640182af383498f40fd9008e70b6ce

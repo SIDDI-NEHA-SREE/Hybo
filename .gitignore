@@ -1,0 +1,29 @@
+# Python dependencies
+__pycache__/
+*.py[cod]
+*$py.class
+.venv
+venv/
+ENV/
+env/
+.env
+
+# Node/Vite dependencies
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# System/IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+Caches/
+logs/
+*.log
