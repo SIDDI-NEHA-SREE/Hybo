@@ -1,29 +1,66 @@
-# Python dependencies
+# Environment & Secret files
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
 .venv
 venv/
-ENV/
 env/
-.env
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Node/Vite dependencies
+# Node / Next.js / Vite
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.next/
+out/
+build/
 dist/
 dist-ssr/
 *.local
 
-# System/IDE files
+# TypeScript
+*.tsbuildinfo
+
+# OS & IDE metadata
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 .idea/
 .vscode/
+*.swp
+*.swo
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*~
+
+# Logs & Databases
 Caches/
 logs/
 *.log
+*.sqlite
+*.db

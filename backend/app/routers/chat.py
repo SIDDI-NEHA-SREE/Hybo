@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
-from datetime import datetime
+from datetime import datetime, timezone
 from app.schemas import ChatRequest, ChatResponse
 from app.services.ai import AIService
 from app.utils.logger import logger
@@ -26,7 +26,7 @@ async def chat_interaction(payload: ChatRequest):
         return ChatResponse(
             reply=reply,
             detected_language=detected_lang,
-            timestamp=datetime.utcnow().isoformat() + "Z",
+            timestamp=datetime.now(timezone.utc).isoformat(),
             session_id=payload.session_id
         )
     except Exception as e:
