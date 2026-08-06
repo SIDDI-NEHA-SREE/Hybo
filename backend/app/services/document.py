@@ -10,9 +10,10 @@ class DocumentService:
 
     @classmethod
     def _get_textract(cls):
+        if not settings.is_aws_configured:
+            logger.info("AWS credentials not configured. Textract client is disabled.")
+            return None
         if cls._textract_client is None:
-            if settings.AWS_ACCESS_KEY_ID == "mock-key" or not settings.AWS_ACCESS_KEY_ID:
-                return None
             try:
                 cls._textract_client = boto3.client(
                     "textract",

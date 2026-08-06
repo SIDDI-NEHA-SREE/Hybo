@@ -1,5 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
+from app.config import settings
 from app.services.voice import VoiceService
 from app.utils.logger import logger
 
@@ -14,18 +15,24 @@ router = APIRouter(
 )
 async def transcribe_audio(file: UploadFile = File(...)):
     logger.info(f"Incoming audio transcription request: {file.filename}")
+    if not settings.is_aws_configured:
+        return {
+            "success": False,
+            "message": "AI service is currently disabled."
+        }
     try:
         audio_content = await file.read()
         transcription = await VoiceService.speech_to_text(audio_content, file.filename)
         return {
+            "success": True,
             "transcription": transcription
         }
     except Exception as e:
         logger.error(f"Error transcribing audio: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to transcribe speech audio"
-        )
+        return {
+            "success": False,
+            "message": "AI service is currently disabled."
+        }
 
 @router.post(
     "/synthesize",
@@ -36,6 +43,14 @@ async def synthesize_speech(
     language: str = Form("en")
 ):
     logger.info(f"Incoming speech synthesis request for: {text[:50]}...")
+    if not settings.is_aws_configured:
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "success": False,
+                "message": "AI service is currently disabled."
+            }
+        )
     try:
         audio_stream = await VoiceService.text_to_speech(text, language)
         return StreamingResponse(
@@ -47,7 +62,11 @@ async def synthesize_speech(
         )
     except Exception as e:
         logger.error(f"Error synthesizing speech: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to synthesize text to speech"
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "success": False,
+                "message": "AI service is currently disabled."
+            }
         )
+

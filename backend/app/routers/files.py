@@ -66,7 +66,14 @@ async def analyze_document(
             preferred_lang=language
         )
         
+        if analysis_reply is None:
+            return {
+                "success": False,
+                "message": "AI service is currently disabled."
+            }
+
         return {
+            "success": True,
             "filename": filename,
             "action": action,
             "extracted_text_snippet": extracted_text[:200] + "...",

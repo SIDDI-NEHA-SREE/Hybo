@@ -10,9 +10,10 @@ class VoiceService:
 
     @classmethod
     def _get_polly(cls):
+        if not settings.is_aws_configured:
+            logger.info("AWS credentials not configured. Polly client is disabled.")
+            return None
         if cls._polly_client is None:
-            if settings.AWS_ACCESS_KEY_ID == "mock-key" or not settings.AWS_ACCESS_KEY_ID:
-                return None
             try:
                 cls._polly_client = boto3.client(
                     "polly",
@@ -27,9 +28,10 @@ class VoiceService:
 
     @classmethod
     def _get_transcribe(cls):
+        if not settings.is_aws_configured:
+            logger.info("AWS credentials not configured. Transcribe client is disabled.")
+            return None
         if cls._transcribe_client is None:
-            if settings.AWS_ACCESS_KEY_ID == "mock-key" or not settings.AWS_ACCESS_KEY_ID:
-                return None
             try:
                 cls._transcribe_client = boto3.client(
                     "transcribe",

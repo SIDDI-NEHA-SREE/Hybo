@@ -1,3 +1,4 @@
+from typing import Optional, Tuple
 import re
 from datetime import datetime
 from app.utils.logger import logger
@@ -41,10 +42,10 @@ class AIService:
         return any(keyword in lower_text for keyword in all_keywords)
 
     @classmethod
-    async def process_chat(cls, message: str, preferred_lang: str) -> tuple[str, str]:
+    async def process_chat(cls, message: str, preferred_lang: str) -> Tuple[Optional[str], str, bool]:
         """
         Processes user chat message, checks scope, detects language, and delegates response.
-        Returns a tuple of (reply_text, detected_language).
+        Returns a tuple of (reply_text, detected_language, is_service_available).
         """
         detected_lang = cls.detect_language(message)
         logger.info(f"Processing chat. Detected language: {detected_lang}, preferred: {preferred_lang}")
@@ -61,7 +62,12 @@ class AIService:
                 "ur": "میں صرف حیدرآباد اور تلنگانہ سے متعلقہ موضوعات پر ہی جواب دے سکتا ہوں۔ براہ کرم ہمارے صوبے کی فلاحی اسکیموں، تاریخی مقامات، ٹرانسپورٹ روٹس یا ہنگامی رابطوں کے بارے میں سوال کریں۔"
             }
             lang_to_use = detected_lang if detected_lang in rejections else (preferred_lang if preferred_lang in rejections else "en")
-            return rejections[lang_to_use], detected_lang
+            return rejections[lang_to_use], detected_lang, True
+
+        # Check if Bedrock is available
+        if not BedrockClient.is_available():
+            logger.info("Bedrock AI service is unavailable.")
+            return None, detected_lang, False
 
         # Delegate execution to Bedrock client
         reply = await BedrockClient.invoke_model(
@@ -69,4 +75,8 @@ class AIService:
             preferred_lang=detected_lang
         )
         
-        return reply, detected_lang
+        if reply is None:
+            return None, detected_lang, False
+
+        return reply, detected_lang, True
+

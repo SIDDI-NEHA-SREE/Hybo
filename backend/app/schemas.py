@@ -18,7 +18,10 @@ class ChatRequest(BaseModel):
     )
 
 class ChatResponse(BaseModel):
-    reply: str = Field(..., description="The response reply text from HYBO Assistant")
-    detected_language: str = Field(..., description="The language code detected from the user message")
-    timestamp: str = Field(..., description="The ISO formatted response timestamp")
+    success: bool = Field(True, description="Indicates whether the request was successful")
+    message: Optional[str] = Field(None, description="Status or info message (e.g. when AI service is disabled)")
+    reply: Optional[str] = Field(None, description="The response reply text from HYBO Assistant")
+    detected_language: Optional[str] = Field(None, description="The language code detected from the user message")
+    timestamp: Optional[str] = Field(None, description="The ISO formatted response timestamp")
     session_id: Optional[str] = Field(None, description="The session tracking ID associated with the response")
+
