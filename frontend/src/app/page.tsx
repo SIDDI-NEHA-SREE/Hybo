@@ -5,6 +5,16 @@ import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 import ChatWindow, { Message } from "../components/ChatWindow";
 import ChatInput from "../components/ChatInput";
+import AuthModal from "../components/AuthModal";
+import ProfileModal from "../components/ProfileModal";
+
+interface KnowledgeSource {
+  url: string;
+  status: "processing" | "success" | "failed";
+  message?: string;
+  pages_count: number;
+  updated_at: string;
+}
 
 export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("dark");
@@ -12,16 +22,139 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Initialize theme Class on document element
+  // Auth states
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  // RAG / Knowledge states
+  const [sources, setSources] = useState<KnowledgeSource[]>([]);
+
+  // Initialize theme class on document element
   useEffect(() => {
     document.documentElement.className = theme;
   }, [theme]);
+
+  // Load token and user session on mount
+  useEffect(() => {
+    const storedToken = localStorage.getItem("hybo_token");
+    if (storedToken) {
+      setToken(storedToken);
+      fetchUserProfile(storedToken);
+    }
+    // Fetch knowledge sources
+    fetchSources();
+  }, []);
+
+  // Poll status periodically if any source is in "processing" status
+  useEffect(() => {
+    const hasProcessing = sources.some((s) => s.status === "processing");
+    if (hasProcessing) {
+      const interval = setInterval(() => {
+        fetchSources();
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [sources]);
+
+  const fetchUserProfile = async (authToken: string) => {
+    try {
+      const response = await fetch("http://localhost:8000/api/auth/me", {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.authenticated && data.user) {
+          setUser(data.user);
+        } else {
+          handleLogout();
+        }
+      } else {
+        handleLogout();
+      }
+    } catch (err) {
+      console.error("Session verification failed:", err);
+      handleLogout();
+    }
+  };
+
+  const handleAuthSuccess = (newToken: string, loggedInUser: any) => {
+    localStorage.setItem("hybo_token", newToken);
+    setToken(newToken);
+    setUser(loggedInUser);
+    
+    // Add a welcome bot message automatically when user logs in
+    const welcomeMsg: Message = {
+      id: `bot-welcome-${Date.now()}`,
+      sender: "assistant",
+      text: `Hello ${loggedInUser.name}! Welcome to HYBO Assistant. You are now logged in via phone verification. How can I help you today?`,
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    };
+    setMessages((prev) => [...prev, welcomeMsg]);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("hybo_token");
+    setToken(null);
+    setUser(null);
+  };
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
 
-  const handleSend = (text: string) => {
+  // --- RAG Source Handlers ---
+
+  const fetchSources = async () => {
+    try {
+      const response = await fetch("http://localhost:8000/api/knowledge/sources");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.sources) {
+          setSources(data.sources);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch knowledge sources:", err);
+    }
+  };
+
+  const handleAddSource = async (url: string) => {
+    const response = await fetch("http://localhost:8000/api/knowledge/url", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || "Failed to add website source.");
+    }
+    
+    // Instantly refresh list to show "processing" state
+    await fetchSources();
+  };
+
+  const handleDeleteSource = async (url: string) => {
+    const response = await fetch(`http://localhost:8000/api/knowledge/url?url=${encodeURIComponent(url)}`, {
+      method: "DELETE",
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || "Failed to delete website source.");
+    }
+
+    // Refresh list
+    await fetchSources();
+  };
+
+  const handleSend = async (text: string) => {
     // Add user message
     const userMsg: Message = {
       id: `user-${Date.now()}`,
@@ -33,12 +166,42 @@ export default function Home() {
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
-    // Simulate response delay
-    setTimeout(() => {
-      setIsLoading(false);
-      const lowerText = text.toLowerCase();
+    let responseText = "";
+    let citedSources: string[] = [];
 
-      // Check if it is local to Hyd / TS
+    try {
+      // Send query to FastAPI chat interaction endpoint
+      const response = await fetch("http://localhost:8000/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: text,
+          language: language,
+          session_id: "default-session"
+        })
+      });
+
+      setIsLoading(false);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.reply) {
+          responseText = data.reply;
+          citedSources = data.sources || [];
+        } else {
+          responseText = data.message || "The AI assistant service returned an error.";
+        }
+      } else {
+        throw new Error("HTTP error on chat endpoint");
+      }
+    } catch (err) {
+      console.log("FastAPI backend is offline or failed. Falling back to local frontend simulation:", err);
+      setIsLoading(false);
+      
+      // Fallback local simulation logic
+      const lowerText = text.toLowerCase();
       const isHyderabadOrTS = 
         lowerText.includes("hyderabad") || 
         lowerText.includes("telangana") || 
@@ -55,50 +218,49 @@ export default function Home() {
         lowerText.includes("scheme") ||
         lowerText.includes("metro");
 
-      let responseText = "";
-
       if (!isHyderabadOrTS) {
         responseText = "I specialize ONLY in Hyderabad and Telangana related topics. Please ask me about local welfare schemes, historical landmarks, transport routes, or emergency contacts within our state.";
       } else {
         responseText = `Thank you for asking about "${text}". This is a premium frontend streaming simulation. In subsequent phases, we will integrate FastAPI and AWS Bedrock (Claude 3.5 Sonnet) to retrieve live, accurate information directly from official sources without storing it locally.`;
       }
+    }
 
-      // Stream simulation
-      const botMsgId = `bot-${Date.now()}`;
-      const words = responseText.split(" ");
-      let currentWordIndex = 0;
+    // Stream simulation for output typing animation
+    const botMsgId = `bot-${Date.now()}`;
+    const words = responseText.split(" ");
+    let currentWordIndex = 0;
 
-      // Create empty bot bubble
-      const initialBotMsg: Message = {
-        id: botMsgId,
-        sender: "assistant",
-        text: "",
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        isStreaming: true
-      };
+    // Create empty bot bubble
+    const initialBotMsg: Message = {
+      id: botMsgId,
+      sender: "assistant",
+      text: "",
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      isStreaming: true,
+      sources: citedSources.length > 0 ? citedSources : undefined
+    };
 
-      setMessages((prev) => [...prev, initialBotMsg]);
+    setMessages((prev) => [...prev, initialBotMsg]);
 
-      const interval = setInterval(() => {
-        if (currentWordIndex < words.length) {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === botMsgId
-                ? { ...m, text: words.slice(0, currentWordIndex + 1).join(" ") }
-                : m
-            )
-          );
-          currentWordIndex++;
-        } else {
-          clearInterval(interval);
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === botMsgId ? { ...m, isStreaming: false } : m
-            )
-          );
-        }
-      }, 70); // Typist speed
-    }, 1200);
+    const interval = setInterval(() => {
+      if (currentWordIndex < words.length) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === botMsgId
+              ? { ...m, text: words.slice(0, currentWordIndex + 1).join(" ") }
+              : m
+          )
+        );
+        currentWordIndex++;
+      } else {
+        clearInterval(interval);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === botMsgId ? { ...m, isStreaming: false } : m
+          )
+        );
+      }
+    }, 45); // Adjust typing speed
   };
 
   return (
@@ -108,19 +270,43 @@ export default function Home() {
         toggleTheme={toggleTheme}
         language={language}
         setLanguage={setLanguage}
+        user={user}
+        onOpenLogin={() => setIsLoginOpen(true)}
+        onOpenProfile={() => setIsProfileOpen(true)}
       />
 
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar />
+        <Sidebar
+          sources={sources}
+          onAddSource={handleAddSource}
+          onDeleteSource={handleDeleteSource}
+        />
         <main className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/40 relative">
           <ChatWindow
             messages={messages}
             onSuggestedClick={handleSend}
             isLoading={isLoading}
+            userName={user?.name}
           />
           <ChatInput onSend={handleSend} isLoading={isLoading} />
         </main>
       </div>
+
+      {/* Modals */}
+      <AuthModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
+      />
+
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        user={user}
+        token={token}
+        onUpdateUser={(updated) => setUser(updated)}
+        onLogout={handleLogout}
+      />
     </div>
   );
 }

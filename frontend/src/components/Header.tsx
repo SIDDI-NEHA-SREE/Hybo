@@ -7,9 +7,20 @@ interface HeaderProps {
   toggleTheme: () => void;
   language: string;
   setLanguage: (lang: string) => void;
+  user: any;
+  onOpenLogin: () => void;
+  onOpenProfile: () => void;
 }
 
-export default function Header({ theme, toggleTheme, language, setLanguage }: HeaderProps) {
+export default function Header({ 
+  theme, 
+  toggleTheme, 
+  language, 
+  setLanguage,
+  user,
+  onOpenLogin,
+  onOpenProfile
+}: HeaderProps) {
   return (
     <header className="border-b border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-950/50 backdrop-blur-md px-6 py-4 flex justify-between items-center sticky top-0 z-50 transition-colors">
       <div className="flex items-center gap-3">
@@ -53,6 +64,27 @@ export default function Header({ theme, toggleTheme, language, setLanguage }: He
         >
           {theme === "light" ? "🌙" : "☀️"}
         </button>
+
+        {/* User Auth Section */}
+        {user ? (
+          <button
+            onClick={onOpenProfile}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all font-medium text-xs border border-slate-200 dark:border-slate-700 cursor-pointer shadow-sm"
+          >
+            <span className="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-600 to-amber-600 text-white font-bold flex items-center justify-center text-[10px]">
+              {user.name.charAt(0).toUpperCase()}
+            </span>
+            <span className="hidden sm:inline font-semibold">{user.name}</span>
+          </button>
+        ) : (
+          <button
+            onClick={onOpenLogin}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all font-semibold text-xs cursor-pointer shadow-md shadow-blue-500/15"
+          >
+            <span>🔑</span>
+            <span>Citizen Login</span>
+          </button>
+        )}
 
         <div className="px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hidden sm:inline-block">
           Active

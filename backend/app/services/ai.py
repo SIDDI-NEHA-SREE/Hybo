@@ -42,9 +42,10 @@ class AIService:
         return any(keyword in lower_text for keyword in all_keywords)
 
     @classmethod
-    async def process_chat(cls, message: str, preferred_lang: str) -> Tuple[Optional[str], str, bool]:
+    async def process_chat(cls, message: str, preferred_lang: str, retrieved_context: str = "") -> Tuple[Optional[str], str, bool]:
         """
         Processes user chat message, checks scope, detects language, and delegates response.
+        Supports retrieved website context for RAG.
         Returns a tuple of (reply_text, detected_language, is_service_available).
         """
         detected_lang = cls.detect_language(message)
@@ -66,12 +67,44 @@ class AIService:
 
         # Check if Bedrock is available
         if not BedrockClient.is_available():
+            if retrieved_context:
+                logger.info("Bedrock AI offline: Generating simulated RAG response based on retrieved website chunks")
+                
+                # Parse lines from context to form a readable summary
+                context_chunks = []
+                current_chunk = []
+                for line in retrieved_context.split("\n"):
+                    if line.startswith("Source URL:") or line.startswith("Page Title:"):
+                        continue
+                    if line == "---":
+                        if current_chunk:
+                            context_chunks.append("\n".join(current_chunk).strip())
+                            current_chunk = []
+                    else:
+                        current_chunk.append(line)
+                if current_chunk:
+                    context_chunks.append("\n".join(current_chunk).strip())
+
+                summary = ""
+                if context_chunks:
+                    summary = f"According to the available website information:\n\n"
+                    # Add snippet from first chunk
+                    summary += f"{context_chunks[0][:400]}...\n\n"
+                    if len(context_chunks) > 1:
+                        summary += f"Additional details: {context_chunks[1][:300]}..."
+                else:
+                    summary = "Matches were found in the website knowledge, but the details are empty."
+                    
+                reply = f"{summary}\n\n[Note: This response is grounded in the retrieved website chunks under local Dev Fallback mode]"
+                return reply, detected_lang, True
+
             logger.info("Bedrock AI service is unavailable.")
             return None, detected_lang, False
 
         # Delegate execution to Bedrock client
         reply = await BedrockClient.invoke_model(
             prompt=message,
+            retrieved_context=retrieved_context,
             preferred_lang=detected_lang
         )
         

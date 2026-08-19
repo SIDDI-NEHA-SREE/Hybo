@@ -8,15 +8,17 @@ export interface Message {
   text: string;
   time: string;
   isStreaming?: boolean;
+  sources?: string[];
 }
 
 interface ChatWindowProps {
   messages: Message[];
   onSuggestedClick: (question: string) => void;
   isLoading: boolean;
+  userName?: string;
 }
 
-export default function ChatWindow({ messages, onSuggestedClick, isLoading }: ChatWindowProps) {
+export default function ChatWindow({ messages, onSuggestedClick, isLoading, userName }: ChatWindowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export default function ChatWindow({ messages, onSuggestedClick, isLoading }: Ch
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">
-              HYBO Assistant
+              {userName ? `Welcome, ${userName}! 👋` : "HYBO Assistant"}
             </h2>
             <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
               Ask anything about Telangana schemes, Hyderabad history, metro routes, government offices, or hospital contacts.
@@ -77,6 +79,35 @@ export default function ChatWindow({ messages, onSuggestedClick, isLoading }: Ch
                 <p className="whitespace-pre-wrap">{msg.text}</p>
                 {msg.isStreaming && (
                   <span className="inline-block w-1.5 h-4 ml-1 bg-current animate-pulse align-middle" />
+                )}
+                
+                {/* Cited Sources section */}
+                {msg.sources && msg.sources.length > 0 && (
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex flex-col gap-1.5 w-full">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      Cited Sources:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {msg.sources.map((src, sIdx) => {
+                        let label = src;
+                        try {
+                          const parsed = new URL(src);
+                          label = `${parsed.hostname}${parsed.pathname === "/" ? "" : parsed.pathname}`;
+                        } catch (e) {}
+                        return (
+                          <a
+                            key={sIdx}
+                            href={src}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 font-medium text-[9px] border border-blue-100 dark:border-blue-900/30 transition-all hover:scale-105"
+                          >
+                            🔗 {label}
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
               </div>
               <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium px-1">

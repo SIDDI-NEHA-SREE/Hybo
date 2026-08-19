@@ -1,0 +1,12 @@
+{
+  "sources": {
+    "https://example.com": {
+      "url": "https://example.com",
+      "status": "failed",
+      "message": "name 'urlparse' is not defined",
+      "pages_count": 0,
+      "updated_at": "2026-08-18T17:12:16.665892+00:00"
+    }
+  },
+  "chunks": []
+}

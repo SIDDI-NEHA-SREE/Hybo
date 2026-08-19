@@ -4,7 +4,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from app.config import settings
 from app.utils.logger import logger
-from app.routers import chat, voice, files
+from app.routers import chat, voice, files, auth, knowledge
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -35,6 +35,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 # Include Routers
+app.include_router(auth.router)
+app.include_router(knowledge.router)
 app.include_router(chat.router)
 app.include_router(voice.router)
 app.include_router(files.router)

@@ -18,6 +18,18 @@ class Settings(BaseSettings):
     MAX_TOKENS: int = 2048
     TEMPERATURE: float = 0.2
 
+    # Twilio Configurations
+    TWILIO_ACCOUNT_SID: Optional[str] = None
+    TWILIO_AUTH_TOKEN: Optional[str] = None
+    TWILIO_PHONE_NUMBER: Optional[str] = None
+    TWILIO_VERIFY_SERVICE_SID: Optional[str] = None
+
+    # JWT Authentication
+    JWT_SECRET_KEY: str = "hybo-super-secret-jwt-key-change-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
+    OTP_EXPIRE_MINUTES: int = 5
+
     @property
     def is_aws_configured(self) -> bool:
         """
@@ -34,6 +46,21 @@ class Settings(BaseSettings):
         if not secret or secret.lower() in dummy_values:
             return False
         if not region or region.lower() in dummy_values:
+            return False
+        return True
+
+    @property
+    def is_twilio_configured(self) -> bool:
+        """
+        Returns True only if Twilio Account SID and Auth Token are provided and non-dummy.
+        """
+        dummy_values = {"mock-sid", "mock-token", "your-twilio-account-sid", "your-twilio-auth-token", "none", "null", ""}
+        sid = (self.TWILIO_ACCOUNT_SID or "").strip()
+        token = (self.TWILIO_AUTH_TOKEN or "").strip()
+
+        if not sid or sid.lower() in dummy_values:
+            return False
+        if not token or token.lower() in dummy_values:
             return False
         return True
 
