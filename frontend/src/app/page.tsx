@@ -7,6 +7,7 @@ import ChatWindow, { Message } from "../components/ChatWindow";
 import ChatInput from "../components/ChatInput";
 import AuthModal from "../components/AuthModal";
 import ProfileModal from "../components/ProfileModal";
+import { supabase } from "../utils/supabaseClient";
 
 interface KnowledgeSource {
   url: string;
@@ -31,6 +32,8 @@ export default function Home() {
   // RAG / Knowledge states
   const [sources, setSources] = useState<KnowledgeSource[]>([]);
 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   // Initialize theme class on document element
   useEffect(() => {
     document.documentElement.className = theme;
@@ -38,13 +41,31 @@ export default function Home() {
 
   // Load token and user session on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem("hybo_token");
-    if (storedToken) {
-      setToken(storedToken);
-      fetchUserProfile(storedToken);
-    }
+    const initAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setToken(session.access_token);
+        fetchUserProfile(session.access_token);
+      }
+    };
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        setToken(session.access_token);
+        fetchUserProfile(session.access_token);
+      } else if (event === "SIGNED_OUT") {
+        setToken(null);
+        setUser(null);
+      }
+    });
+
     // Fetch knowledge sources
     fetchSources();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Poll status periodically if any source is in "processing" status
@@ -60,7 +81,7 @@ export default function Home() {
 
   const fetchUserProfile = async (authToken: string) => {
     try {
-      const response = await fetch("http://localhost:8000/api/auth/me", {
+      const response = await fetch(`${API_URL}/api/auth/me`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -82,7 +103,6 @@ export default function Home() {
   };
 
   const handleAuthSuccess = (newToken: string, loggedInUser: any) => {
-    localStorage.setItem("hybo_token", newToken);
     setToken(newToken);
     setUser(loggedInUser);
     
@@ -90,14 +110,14 @@ export default function Home() {
     const welcomeMsg: Message = {
       id: `bot-welcome-${Date.now()}`,
       sender: "assistant",
-      text: `Hello ${loggedInUser.name}! Welcome to HYBO Assistant. You are now logged in via phone verification. How can I help you today?`,
+      text: `Hello ${loggedInUser.name}! Welcome to HYBO Assistant. You are now logged in. How can I help you today?`,
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     };
     setMessages((prev) => [...prev, welcomeMsg]);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("hybo_token");
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setToken(null);
     setUser(null);
   };
@@ -110,7 +130,7 @@ export default function Home() {
 
   const fetchSources = async () => {
     try {
-      const response = await fetch("http://localhost:8000/api/knowledge/sources");
+      const response = await fetch(`${API_URL}/api/knowledge/sources`);
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.sources) {
@@ -123,7 +143,7 @@ export default function Home() {
   };
 
   const handleAddSource = async (url: string) => {
-    const response = await fetch("http://localhost:8000/api/knowledge/url", {
+    const response = await fetch(`${API_URL}/api/knowledge/url`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -141,7 +161,7 @@ export default function Home() {
   };
 
   const handleDeleteSource = async (url: string) => {
-    const response = await fetch(`http://localhost:8000/api/knowledge/url?url=${encodeURIComponent(url)}`, {
+    const response = await fetch(`${API_URL}/api/knowledge/url?url=${encodeURIComponent(url)}`, {
       method: "DELETE",
     });
 
@@ -170,12 +190,17 @@ export default function Home() {
     let citedSources: string[] = [];
 
     try {
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       // Send query to FastAPI chat interaction endpoint
-      const response = await fetch("http://localhost:8000/api/chat", {
+      const response = await fetch(`${API_URL}/api/chat`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: headers,
         body: JSON.stringify({
           message: text,
           language: language,

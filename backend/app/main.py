@@ -14,9 +14,15 @@ app = FastAPI(
 )
 
 # Configure CORS
+origins = ["http://localhost:3000"]
+if settings.FRONTEND_URL:
+    frontend_url_clean = settings.FRONTEND_URL.strip().rstrip("/")
+    if frontend_url_clean not in origins:
+        origins.append(frontend_url_clean)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For production, specify actual frontend origins
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

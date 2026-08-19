@@ -7,8 +7,8 @@ This document details the configuration requirements, environment specifications
 ## 1. Production Tech Stack & Targets
 
 - **Frontend client**: Next.js (TypeScript) deployed to **Vercel** (Global CDN edge delivery).
-- **Backend API**: FastAPI (Python 3.14) containerized and deployed to **AWS App Runner** or **AWS Lambda**.
-- **Orchestration**: Docker & AWS Elastic Container Registry (ECR).
+- **Backend API**: FastAPI (Python 3.11) containerized and deployed to **Render** (via Web Service with Docker).
+- **Database / Auth**: **Supabase** (PostgreSQL database & Supabase Auth).
 - **AI & Processing Services**: Amazon Bedrock, Amazon Textract, Amazon Transcribe, Amazon Polly.
 
 ---
@@ -29,63 +29,81 @@ Vercel is the recommended hosting platform for the Next.js app router.
    - Install Command: `npm install`
 3. **Environment Variables**:
    Configure the following environment variables in the project settings:
-   - `NEXT_PUBLIC_API_URL`: The production HTTP URL of your FastAPI backend hosted on AWS (e.g., `https://api.hybo.in`).
+   - `NEXT_PUBLIC_API_URL`: The production HTTP URL of your FastAPI backend hosted on Render (e.g., `https://hybo-backend.onrender.com`).
+   - `NEXT_PUBLIC_SUPABASE_URL`: The URL of your Supabase project (from Settings > API).
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: The public/anon key of your Supabase project.
 4. **Deploy**:
-   - Click **Deploy**. Vercel will automatically build the static assets and spin up the edge route configurations.
+   - Click **Deploy**. Vercel will automatically build the static assets.
 
 ---
 
-## 3. Backend Deployment (AWS App Runner)
+## 3. Backend Deployment (Render)
 
-AWS App Runner is the easiest, most cost-effective way to deploy containerized FastAPI backends with automatic scaling, SSL, and load balancing.
+Render is the recommended hosting platform for the backend container.
 
 ### Step-by-Step Instructions
 
-1. **Create AWS ECR Repository**:
-   Create a private repository to hold your backend Docker images:
-   ```bash
-   aws ecr create-repository --repository-name hybo-backend --region us-east-1
-   ```
-2. **Build and Push Docker Image**:
-   ```bash
-   # Log in to ECR
-   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <aws-account-id>.dkr.ecr.us-east-1.amazonaws.com
-
-   # Build image (make sure you are in backend/ directory)
-   cd backend
-   docker build -t hybo-backend .
-
-   # Tag image
-   docker tag hybo-backend:latest <aws-account-id>.dkr.ecr.us-east-1.amazonaws.com/hybo-backend:latest
-
-   # Push to cloud
-   docker push <aws-account-id>.dkr.ecr.us-east-1.amazonaws.com/hybo-backend:latest
-   ```
-3. **Create App Runner Service**:
-   - Go to the **AWS App Runner Console** and click **Create Service**.
-   - Source: **Container Registry** -> **Amazon ECR**.
-   - Image URI: Select `<aws-account-id>.dkr.ecr.us-east-1.amazonaws.com/hybo-backend:latest`.
-   - Deployment Trigger: Set to **Automatic** (re-deploys when you push a new image).
-4. **Configure Container Settings**:
-   - Port: `8000`
-   - Environment Variables: Configure production credentials (see checklist below).
-5. **IAM Role Permission**:
-   - Under **Security**, attach an IAM Instance Role that contains the following permissions:
-     - `bedrock:InvokeModel`
-     - `textract:DetectDocumentText`
-     - `polly:SynthesizeSpeech`
-     - `transcribe:StartTranscriptionJob`
-6. **Deploy**:
-   - Click **Create & Deploy**. AWS will spin up the load-balanced, SSL-certified Fargate instances.
+1. **Create Web Service on Render**:
+   - Go to the Render Dashboard, click **New +**, and select **Web Service**.
+   - Connect your GitHub repository.
+2. **Configure Settings**:
+   - **Name**: `hybo-backend`
+   - **Region**: Select your preferred region.
+   - **Branch**: `main`
+   - **Root Directory**: `backend` (or leave empty if building the root workspace, but `backend` contains the Dockerfile).
+   - **Runtime**: `Docker`
+3. **Configure Environment Variables**:
+   Configure the following variables in the Render environment settings:
+   - `PORT`: (Auto-provided by Render, but default is `8000`)
+   - `SUPABASE_URL`: Your Supabase Project URL.
+   - `SUPABASE_ANON_KEY`: Your Supabase Anon Key.
+   - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase Service Role Key (used securely on backend only).
+   - `FRONTEND_URL`: Your production Vercel frontend URL (e.g. `https://hybo-frontend.vercel.app`).
+   - Add any other AWS credentials needed for Bedrock, Polly, etc. (e.g. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`).
+4. **Deploy**:
+   - Click **Create Web Service**. Render will build and deploy the container based on the `backend/Dockerfile` automatically.
 
 ---
 
-## 4. Production Environment Variables Checklist
+## 4. Supabase Setup
+
+To initialize your database, create a `profiles` table in the Supabase SQL editor:
+
+```sql
+create table public.profiles (
+  id uuid references auth.users on delete cascade primary key,
+  name text,
+  email text,
+  phone_number text,
+  role text default 'citizen',
+  created_at timestamptz default timezone('utc'::text, now()) not null,
+  updated_at timestamptz default timezone('utc'::text, now()) not null
+);
+
+-- Enable Row Level Security (RLS)
+alter table public.profiles enable row level security;
+
+-- Create policy to allow users to select/update their own profile
+create policy "Allow users to view own profile" on public.profiles
+  for select using (auth.uid() = id);
+
+create policy "Allow users to update own profile" on public.profiles
+  for update using (auth.uid() = id);
+
+create policy "Allow service role full access" on public.profiles
+  for all using (true);
+```
+
+---
+
+## 5. Production Environment Variables Checklist
 
 ### Frontend (`frontend/.env.production`)
 | Variable Name | Description | Value Example |
 | :--- | :--- | :--- |
-| `NEXT_PUBLIC_API_URL` | Endpoint of the live FastAPI server | `https://api.hybo.in` |
+| `NEXT_PUBLIC_API_URL` | Endpoint of the live FastAPI server on Render | `https://hybo-backend.onrender.com` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project API URL | `https://xyz.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public client key for auth | `eyJhbGci...` |
 
 ### Backend (`backend/.env.production`)
 | Variable Name | Description | Value Example |
@@ -94,18 +112,7 @@ AWS App Runner is the easiest, most cost-effective way to deploy containerized F
 | `DEBUG` | Disables debug logs and Swagger in prod | `False` |
 | `PORT` | Container binding port | `8000` |
 | `HOST` | Container binding host | `0.0.0.0` |
-| `AWS_REGION` | AWS regional deployment | `us-east-1` |
-| `BEDROCK_MODEL_ID` | Production Claude model ID | `anthropic.claude-3-5-sonnet-20240620-v1:0` |
-
----
-
-## 5. Pre-Deployment Testing Checklist
-
-Run these sanity checks prior to pointing domains to the production build:
-
-- [ ] **FastAPI Swagger Access**: Verify `/docs` works in dev and is disabled in prod by setting `DEBUG=False`.
-- [ ] **Telangana Scope Filter**: Submit a query about "New York City". Confirm that the system prompt rejects the query politely.
-- [ ] **Multilingual Integrity**: Submit a query in Telugu script (హైదరాబాద్) and verify the assistant responds in Telugu.
-- [ ] **Transient Document Upload Check**: Upload a PDF and call the `extract` action. Verify that no file is written to `/tmp` or the filesystem.
-- [ ] **Image OCR (AWS Textract)**: Upload a PNG and verify that Textract returns extracted text lines.
-- [ ] **Voice Playback Stream**: Submit a TTS request and verify the response headers contain `Content-Type: audio/mpeg` and play audio cleanly.
+| `SUPABASE_URL` | Supabase API connection URL | `https://xyz.supabase.co` |
+| `SUPABASE_ANON_KEY` | Supabase public anon key | `eyJhbGci...` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase admin secret key | `eyJhbGci...` |
+| `FRONTEND_URL` | Production allowed CORS origin | `https://hybo-frontend.vercel.app` |

@@ -4,7 +4,8 @@ import React, { useState } from "react";
 
 interface UserProfile {
   id: string;
-  phone_number: string;
+  phone_number?: string;
+  email?: string;
   name: string;
   role: string;
   created_at: string;
@@ -42,7 +43,8 @@ export default function ProfileModal({
     setErrorMessage("");
 
     try {
-      const response = await fetch(`http://localhost:8000/api/auth/profile?name=${encodeURIComponent(editedName.trim())}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiUrl}/api/auth/profile?name=${encodeURIComponent(editedName.trim())}`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -168,10 +170,18 @@ export default function ProfileModal({
                     </button>
                   </div>
                 </div>
-                <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50 dark:border-slate-800/50">
-                  <span className="text-slate-500 dark:text-slate-400 text-xs font-medium">Mobile Phone:</span>
-                  <span className="font-mono text-xs text-slate-800 dark:text-slate-200">{user.phone_number}</span>
-                </div>
+                {user.email && (
+                  <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50 dark:border-slate-800/50">
+                    <span className="text-slate-500 dark:text-slate-400 text-xs font-medium">Email:</span>
+                    <span className="font-mono text-xs text-slate-800 dark:text-slate-200">{user.email}</span>
+                  </div>
+                )}
+                {user.phone_number && (
+                  <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50 dark:border-slate-800/50">
+                    <span className="text-slate-500 dark:text-slate-400 text-xs font-medium">Mobile Phone:</span>
+                    <span className="font-mono text-xs text-slate-800 dark:text-slate-200">{user.phone_number}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50 dark:border-slate-800/50">
                   <span className="text-slate-500 dark:text-slate-400 text-xs font-medium">Role:</span>
                   <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">

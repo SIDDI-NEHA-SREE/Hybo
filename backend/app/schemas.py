@@ -69,7 +69,8 @@ class VerifyOTPRequest(BaseModel):
 
 class UserProfile(BaseModel):
     id: str = Field(..., description="Unique User ID")
-    phone_number: str = Field(..., description="Registered Phone Number")
+    email: Optional[str] = Field(None, description="Registered Email")
+    phone_number: Optional[str] = Field(None, description="Registered Phone Number")
     name: Optional[str] = Field("Citizen User", description="Display name")
     role: str = Field("citizen", description="User role")
     created_at: str = Field(..., description="User creation timestamp")

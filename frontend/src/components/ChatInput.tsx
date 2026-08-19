@@ -59,7 +59,8 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
           const formData = new FormData();
           formData.append("file", audioBlob, "recording.wav");
 
-          const response = await fetch("http://localhost:8000/api/voice/transcribe", {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          const response = await fetch(`${apiUrl}/api/voice/transcribe`, {
             method: "POST",
             body: formData,
           });

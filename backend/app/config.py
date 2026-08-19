@@ -8,6 +8,14 @@ class Settings(BaseSettings):
     PORT: int = int(os.getenv("PORT", 8000))
     HOST: str = "0.0.0.0"
 
+    # Supabase Configuration
+    SUPABASE_URL: str = ""
+    SUPABASE_ANON_KEY: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+
+    # Frontend URL (for CORS)
+    FRONTEND_URL: str = "http://localhost:3000"
+
     # AWS Credentials (Optional for deployment without Bedrock)
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
